@@ -33,12 +33,24 @@ The bundle has two targets. `demo` (the default) deploys under your home folder.
 | `warehouse_id` | the warehouse named **Serverless Starter Warehouse** |
 | `workspace_folder` | `demo`: `Genie Tuning Demo Agents` in your home folder. `prod`: none, you have to set it. The folder has to exist before the first deploy. |
 
-Pass variables with `--var`, or keep them out of the repo in `.databricks/bundle/<target>/variable-overrides.json` (gitignored):
+Team IDs come from the MLB Stats API (`https://statsapi.mlb.com/api/v1/teams?sportId=1`). The agent titles, comments, instructions, examples and benchmark questions all use the team's names.
+
+The deployment state lives under `workspace_folder`, so a new folder is a new deployment with its own agents. To move one, `databricks bundle destroy` it first, then deploy with the new folder.
+
+## Deploy
+
+Every bundle command (`deploy`, `run`, `destroy`) needs the variables, so they have to be set the same way each time. There are two ways to do it, and `team` can only go in the file, because it has several fields and `--var` and `BUNDLE_VAR_*` environment variables don't take that kind of variable.
+
+### Option 1: an overrides file (recommended)
+
+Put the values in `.databricks/bundle/prod/variable-overrides.json`. The `.databricks` folder is gitignored, so they stay out of the repo, and you don't have to repeat them on each command.
 
 ```json
 {
   "catalog": "my_catalog",
   "workspace_folder": "/Workspace/Acme_Onsite",
+  "season": "2026",
+  "warehouse_id": "1234567890abcdef",
   "team": {
     "id": 111,
     "name": "Boston Red Sox",
@@ -50,19 +62,37 @@ Pass variables with `--var`, or keep them out of the repo in `.databricks/bundle
 }
 ```
 
-Team IDs come from the MLB Stats API (`https://statsapi.mlb.com/api/v1/teams?sportId=1`). The agent titles, comments, instructions, examples and benchmark questions all use the team's names.
-
-The deployment state lives under `workspace_folder`, so a new folder is a new deployment with its own agents. To move one, `databricks bundle destroy` it first, then deploy with the new folder.
-
-Then, from this folder:
+Leave out any variable whose default you're happy with. Then, from this folder:
 
 ```bash
-databricks workspace mkdirs /Workspace/Acme_Onsite   # once
-databricks bundle deploy -t prod
-databricks bundle run setup_data -t prod     # load the data and make the UC changes, about 5 minutes
-databricks bundle deploy -t prod             # create any agent the first deploy couldn't
-databricks bundle run sync_agents -t prod    # apply each agent's config again and start the benchmark runs
+databricks workspace mkdirs /Workspace/Acme_Onsite --profile <profile>   # once
+databricks bundle deploy -t prod --profile <profile>
+databricks bundle run setup_data -t prod --profile <profile>     # load the data and make the UC changes, about 5 minutes
+databricks bundle deploy -t prod --profile <profile>             # create any agent the first deploy couldn't
+databricks bundle run sync_agents -t prod --profile <profile>    # apply each agent's config again and start the benchmark runs
 ```
+
+### Option 2: `--var` on the command line
+
+Keep only `team` in the overrides file and pass the rest with `--var`. Pass the same `--var` flags on every command, including `bundle run` and `bundle destroy`. Leaving out `workspace_folder` fails with `no value assigned to required variable`, but leaving out `catalog` doesn't fail: it quietly goes back to its default, `main`, which then points the next deploy at a different catalog. That's the main reason to prefer the file.
+
+```bash
+databricks workspace mkdirs /Workspace/Acme_Onsite --profile <profile>   # once
+
+databricks bundle deploy -t prod --profile <profile> \
+  --var catalog=my_catalog \
+  --var workspace_folder=/Workspace/Acme_Onsite \
+  --var warehouse_id=1234567890abcdef
+
+databricks bundle run setup_data -t prod --profile <profile> \
+  --var catalog=my_catalog \
+  --var workspace_folder=/Workspace/Acme_Onsite \
+  --var warehouse_id=1234567890abcdef
+```
+
+Then the second `bundle deploy` and `bundle run sync_agents` with the same flags.
+
+`--var` values take priority over the overrides file, so you can also keep everything in the file and use `--var` for a one-off change. To check what a target resolves to before deploying, run `databricks bundle validate -t prod --profile <profile>`.
 
 On a workspace without the data yet, the first deploy creates the jobs but fails on the agents, because Genie won't create an agent on tables that don't exist. That's why there's a second deploy after `setup_data`. A deploy can also fail with `INTERNAL_ERROR` on one agent; deploy again.
 
