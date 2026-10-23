@@ -1,0 +1,48 @@
+bundle:
+  name: genie-agent-tuning-demo
+
+include:
+  - resources/*.yml
+  - resources/agents/*.yml
+
+variables:
+  catalog:
+    description: Catalog for the two demo schemas
+    default: main
+  raw_schema:
+    description: Schema the round 0 agent reads. Never tuned.
+    default: genie_pitching_raw
+  tuned_schema:
+    description: Schema the round 1 to 3 agents read
+    default: genie_pitching_tuned
+  season:
+    description: MLB season to load
+    default: "2026"
+  team:
+    description: >-
+      The team the agents are about, with fields id (the MLB Stats API team ID), name,
+      short_name, abbreviation, home_park and pitcher (a pitcher on the team, used in
+      examples). Set it in .databricks/bundle/<target>/variable-overrides.json; --var
+      doesn't take a complex variable.
+    type: complex
+  warehouse_id:
+    description: SQL warehouse the agents run queries on
+    lookup:
+      warehouse: Serverless Starter Warehouse
+  workspace_folder:
+    description: >-
+      Workspace folder for the four agents. The prod target also deploys its files there,
+      in a folder named after the bundle. It has to exist before the first deploy.
+
+targets:
+  demo:
+    default: true
+    variables:
+      workspace_folder: /Workspace/Users/${workspace.current_user.userName}/Genie Tuning Demo Agents
+
+  # Set workspace_folder with --var or .databricks/bundle/prod/variable-overrides.json,
+  # for example /Workspace/Acme_Onsite.
+  prod:
+    mode: production
+    workspace:
+      root_path: ${var.workspace_folder}/${bundle.name}

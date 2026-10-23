@@ -1,0 +1,41 @@
+# Run after a deploy that creates agents: applies each agent's config again to drop the
+# duplicate joins Genie adds on create, then starts the benchmark runs.
+resources:
+  jobs:
+    sync_agents:
+      name: "Genie tuning demo: sync agents and run benchmarks"
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: raw_schema
+          default: ${var.raw_schema}
+        - name: tuned_schema
+          default: ${var.tuned_schema}
+        - name: season
+          default: ${var.season}
+        - name: team_id
+          default: ${var.team.id}
+        - name: team_name
+          default: ${var.team.name}
+        - name: team_short_name
+          default: ${var.team.short_name}
+        - name: team_abbreviation
+          default: ${var.team.abbreviation}
+        - name: team_home_park
+          default: ${var.team.home_park}
+        - name: team_pitcher
+          default: ${var.team.pitcher}
+        - name: r0_space_id
+          default: ${resources.genie_spaces.r0_raw_tables.id}
+        - name: r1_space_id
+          default: ${resources.genie_spaces.r1_data_levers.id}
+        - name: r2_space_id
+          default: ${resources.genie_spaces.r2_metric_views.id}
+        - name: r3_space_id
+          default: ${resources.genie_spaces.r3_examples_and_rules.id}
+        - name: run_benchmark
+          default: "yes"
+      tasks:
+        - task_key: sync_agents
+          notebook_task:
+            notebook_path: ../06_Sync_Agents.py

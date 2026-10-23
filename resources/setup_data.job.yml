@@ -1,0 +1,46 @@
+# Loads the season and makes the Unity Catalog changes for rounds 1 to 3: comments, keys,
+# metric views and the trusted function. Rerunning it resets the data.
+resources:
+  jobs:
+    setup_data:
+      name: "Genie tuning demo: load and tune data"
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: raw_schema
+          default: ${var.raw_schema}
+        - name: tuned_schema
+          default: ${var.tuned_schema}
+        - name: season
+          default: ${var.season}
+        - name: team_id
+          default: ${var.team.id}
+        - name: team_name
+          default: ${var.team.name}
+        - name: team_short_name
+          default: ${var.team.short_name}
+        - name: team_abbreviation
+          default: ${var.team.abbreviation}
+        - name: team_home_park
+          default: ${var.team.home_park}
+        - name: team_pitcher
+          default: ${var.team.pitcher}
+      tasks:
+        - task_key: load_data
+          notebook_task:
+            notebook_path: ../01_Load_MLB_Data.py
+        - task_key: round1_comments_and_keys
+          depends_on:
+            - task_key: load_data
+          notebook_task:
+            notebook_path: ../03_Round1_Data_Levers.py
+        - task_key: round2_metric_views
+          depends_on:
+            - task_key: round1_comments_and_keys
+          notebook_task:
+            notebook_path: ../04_Round2_Metric_Views.py
+        - task_key: round3_function
+          depends_on:
+            - task_key: round2_metric_views
+          notebook_task:
+            notebook_path: ../05_Round3_Examples_and_Rules.py
